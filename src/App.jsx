@@ -306,13 +306,16 @@ export default function App() {
       )}
 
       {/* Side-by-Side Comparison Modal */}
-      {showCompareModal && allHotspots.length >= 2 && (
+      {showCompareModal && (
         <ComparisonModal
           hotspots={allHotspots}
-          initialHotspotA={selectedHotspot || allHotspots[0]}
-          initialHotspotB={allHotspots[1]}
+          initialHotspotA={selectedHotspot || (allHotspots.length > 0 ? allHotspots[0] : null)}
+          initialHotspotB={allHotspots.length > 1 ? (selectedHotspot && selectedHotspot.hotspot_id === allHotspots[0].hotspot_id ? allHotspots[1] : (allHotspots.find(h => h.classification?.label === 'Agricultural Burn') || allHotspots[1])) : null}
           onClose={() => setShowCompareModal(false)}
           onSelectHotspot={(h) => setSelectedHotspot(h)}
+          isLoading={dataLoading}
+          investigationIds={investigationIds}
+          onToggleInvestigation={handleToggleInvestigation}
         />
       )}
 
