@@ -9,7 +9,7 @@ import {
   FileCode,
   Edit3
 } from 'lucide-react';
-import { exportToGeoJSON } from '../data/mockHotspots';
+import { exportToGeoJSON } from '../data/hotspots';
 
 export default function InvestigationView({
   hotspots = [],
@@ -81,9 +81,9 @@ export default function InvestigationView({
         h.location.longitude,
         h.observation.frp,
         h.history.persistence,
-        h.context.nearest_industry_m,
+        h.context.nearest_industry_m > 0 ? (h.context.nearest_industry_m / 1000).toFixed(2) + ' km' : 'N/A',
         `"${h.context.nearest_industry_name}"`,
-        h.context.nearest_residential_m,
+        'N/A',
         h.uncertainty.quality,
         `"${meta.status || 'Pending Dispatch'}"`,
         `"${(meta.notes || '').replace(/"/g, '""')}"`
@@ -221,9 +221,9 @@ export default function InvestigationView({
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', fontSize: '0.8125rem', color: 'var(--text-secondary)', background: '#f8fafc', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-sm)', marginBottom: '0.75rem' }}>
                     <div><strong>Area:</strong> {h.location.area_name}</div>
-                    <div><strong>FRP:</strong> {h.observation.frp} MW (Brightness: {h.observation.brightness_temperature} K)</div>
-                    <div><strong>Persistence:</strong> {h.history.persistence}% ({h.history.detection_days} passes)</div>
-                    <div><strong>Nearest Industry:</strong> {h.context.nearest_industry_m}m ({h.context.nearest_industry_name})</div>
+                    <div><strong>FRP:</strong> {h.observation.frp} MW{h.observation.brightness_temperature != null ? ` (Brightness: ${h.observation.brightness_temperature} K)` : ''}</div>
+                    <div><strong>Persistence:</strong> {h.history.persistence}% ({h.history.detection_days} days)</div>
+                    <div><strong>Power context:</strong> {h.context.nearest_industry_name}</div>
                   </div>
 
                   {/* Dispatch Status & Field Notes */}

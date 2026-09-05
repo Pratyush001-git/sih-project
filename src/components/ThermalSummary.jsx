@@ -45,7 +45,7 @@ export default function ThermalSummary({ hotspot }) {
           {showTechnicalDetails ? "Hide Technical Details" : "Show Technical Details (Scan/Track/Sensor Geometry)"}
         </button>
 
-        {showTechnicalDetails && (
+        {hotspot.observation.scan != null && (
           <div className="gis-card" style={{ background: '#f8fafc', fontSize: '0.8125rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
               <div><strong>Scan Angle:</strong> {hotspot.observation.scan} km</div>
@@ -83,8 +83,8 @@ export default function ThermalSummary({ hotspot }) {
           <div className="detail-metric-box">
             <div className="detail-metric-label">
               <span>Brightness Temp</span>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="help-tooltip-btn"
                 onClick={() => setActiveTooltip(activeTooltip === 'brightness' ? null : 'brightness')}
                 aria-label="What is Brightness Temperature?"
@@ -92,7 +92,12 @@ export default function ThermalSummary({ hotspot }) {
                 ?
               </button>
             </div>
-            <div className="detail-metric-value">{hotspot.observation.brightness_temperature} <small style={{ fontSize: '0.75rem' }}>K</small></div>
+            <div className="detail-metric-value">
+              {hotspot.observation.brightness_temperature != null
+                ? <>{hotspot.observation.brightness_temperature} <small style={{ fontSize: '0.75rem' }}>K</small></>
+                : <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>N/A</span>
+              }
+            </div>
           </div>
 
           <div className="detail-metric-box">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { PROJECT_FAQS } from '../data/mockHotspots';
+import { PROJECT_FAQS } from '../data/hotspots';
+
 
 export default function FAQView() {
   // Allow toggling questions open/closed, default first two open

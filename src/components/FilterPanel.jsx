@@ -88,7 +88,7 @@ export default function FilterPanel({
                 value={filters.region}
                 onChange={(e) => setFilters({ ...filters, region: e.target.value })}
               >
-                <option value="Delhi NCR">Delhi NCR (Primary Benchmark Region)</option>
+                <option value="Northern Zone">Northern Zone — FIRMS Jan–Mar 2024</option>
                 <option value="All Regions">All Monitored Corridors (Pan-India)</option>
               </select>
             </div>
@@ -102,7 +102,7 @@ export default function FilterPanel({
                 onChange={(e) => setFilters({ ...filters, persistenceLevel: e.target.value })}
               >
                 <option value="Any">Any Persistence (0-100%)</option>
-                <option value="High">High (≥ 25% detection days)</option>
+                <option value="High">High (&ge; 25% detection days)</option>
                 <option value="Medium">Medium (10% - 24%)</option>
                 <option value="Low">Low (&lt; 10% isolated)</option>
               </select>
@@ -138,7 +138,7 @@ export default function FilterPanel({
                   checked={filters.nearIndustryOnly}
                   onChange={(e) => setFilters({ ...filters, nearIndustryOnly: e.target.checked })}
                 />
-                <span>Near industry (&le; 250m)</span>
+                <span>Near power source (&le; 5km)</span>
               </label>
             </div>
           </div>
@@ -170,11 +170,10 @@ export default function FilterPanel({
               <span className="filter-label">Classification Filter:</span>
               <div className="filter-checkbox-group">
                 {[
-                  'Industrial Thermal Source',
-                  'Industrial Fire',
-                  'Agricultural/Vegetation Fire',
+                  'Agricultural Burn',
+                  'Industrial Candidate',
                   'Other Thermal Anomaly',
-                  'Unknown'
+                  'Vegetation Fire'
                 ].map((cat) => {
                   const isSelected = filters.classifications.includes(cat);
                   return (

@@ -14,13 +14,21 @@ import About from './pages/About';
 import FAQ from './pages/FAQ';
 import HotspotDetailsPage from './pages/HotspotDetailsPage';
 
-import { HOTSPOTS_DATA } from './data/hotspots';
+import { loadHotspotsData } from './data/hotspots';
+
+// ML class labels from XGBoost model
+export const ML_CLASSES = [
+  'Agricultural Burn',
+  'Industrial Candidate',
+  'Other Thermal Anomaly',
+  'Vegetation Fire'
+];
 
 const INITIAL_FILTERS = {
   searchQuery: '',
-  region: 'Delhi NCR',
-  priorities: [], // Empty means all
-  classifications: [], // Empty means all
+  region: 'Northern Zone',
+  priorities: [],       // Empty means all
+  classifications: [],  // Empty means all
   persistenceLevel: 'Any',
   nearIndustryOnly: false,
   fromDate: '',
@@ -33,13 +41,33 @@ export default function App() {
   const [selectedHotspot, setSelectedHotspot] = useState(null);
   const [showCompareModal, setShowCompareModal] = useState(false);
 
+  // ML dataset state
+  const [allHotspots, setAllHotspots] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState(null);
+
+  // Load ML predictions on mount
+  useEffect(() => {
+    setDataLoading(true);
+    loadHotspotsData()
+      .then(data => {
+        setAllHotspots(data);
+        setDataLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to load ML hotspot data:', err);
+        setDataError(err.message);
+        setDataLoading(false);
+      });
+  }, []);
+
   // Investigation IDs saved in localStorage for analyst persistence
   const [investigationIds, setInvestigationIds] = useState(() => {
     try {
       const saved = localStorage.getItem('thermalwatch_investigation_ids');
-      return saved ? JSON.parse(saved) : ['H1041', 'H1024'];
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return ['H1041', 'H1024'];
+      return [];
     }
   });
 
@@ -65,7 +93,9 @@ export default function App() {
 
   // Filter computation
   const filteredHotspots = useMemo(() => {
-    return HOTSPOTS_DATA.filter((h) => {
+    if (!allHotspots.length) return [];
+
+    return allHotspots.filter((h) => {
       // 1. Search Query
       if (filters.searchQuery.trim()) {
         const q = filters.searchQuery.toLowerCase();
@@ -87,14 +117,14 @@ export default function App() {
         }
       }
 
-      // 3. Classification Filter
+      // 3. Classification Filter (ML class labels)
       if (filters.classifications.length > 0) {
         if (!filters.classifications.includes(h.classification.label)) {
           return false;
         }
       }
 
-      // 4. Persistence Filter
+      // 4. Persistence Filter (using days_detected / 90 = persistence%)
       if (filters.persistenceLevel === 'High' && h.history.persistence < 25) {
         return false;
       }
@@ -105,8 +135,9 @@ export default function App() {
         return false;
       }
 
-      // 5. Near Industry Filter
-      if (filters.nearIndustryOnly && h.context.nearest_industry_m > 250) {
+      // 5. Near Industry Filter — uses power infrastructure distance as proxy
+      // nearest_industry_m = distance_to_power_km * 1000
+      if (filters.nearIndustryOnly && h.context.nearest_industry_m > 5000) {
         return false;
       }
 
@@ -120,11 +151,66 @@ export default function App() {
 
       return true;
     });
-  }, [filters]);
+  }, [filters, allHotspots]);
 
   const handleResetFilters = () => {
     setFilters(INITIAL_FILTERS);
   };
+
+  // Loading / Error screen
+  if (dataLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-surface)',
+        gap: '1.5rem'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div className="loading-spinner" style={{ margin: '0 auto 1.25rem' }} />
+          <h2 style={{ color: 'var(--brand-navy)', marginBottom: '0.5rem' }}>
+            Loading ML Prediction Dataset
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>
+            Fetching 31,422 FIRMS thermal anomaly predictions (Northern Zone, Jan–Mar 2024)...
+          </p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', marginTop: '0.5rem' }}>
+            XGBoost model · Sentinel-2 + FIRMS · ~91% accuracy
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (dataError) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-surface)',
+        padding: '2rem'
+      }}>
+        <div className="gis-alert gis-alert-warning" style={{ maxWidth: '520px' }}>
+          <strong>Failed to load ML prediction data</strong>
+          <p style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>{dataError}</p>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            style={{ marginTop: '1rem' }}
+            onClick={() => window.location.reload()}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
@@ -138,11 +224,11 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="main-content">
-        {/* VIEW 1: HOME / DASHBOARD (Sections 6-13) */}
+        {/* VIEW 1: HOME / DASHBOARD */}
         {currentTab === 'dashboard' && (
           <Dashboard
             hotspots={filteredHotspots}
-            allHotspotsCount={HOTSPOTS_DATA.length}
+            allHotspotsCount={allHotspots.length}
             filters={filters}
             setFilters={setFilters}
             onResetFilters={handleResetFilters}
@@ -155,11 +241,11 @@ export default function App() {
           />
         )}
 
-        {/* VIEW 2: HOTSPOT EXPLORER (Section 4) */}
+        {/* VIEW 2: HOTSPOT EXPLORER */}
         {currentTab === 'explorer' && (
           <ExploreHotspots
             hotspots={filteredHotspots}
-            allHotspotsCount={HOTSPOTS_DATA.length}
+            allHotspotsCount={allHotspots.length}
             filters={filters}
             setFilters={setFilters}
             onResetFilters={handleResetFilters}
@@ -170,10 +256,10 @@ export default function App() {
           />
         )}
 
-        {/* VIEW 3: FIELD INVESTIGATION QUEUE (Sections 26, 27, 28) */}
+        {/* VIEW 3: FIELD INVESTIGATION QUEUE */}
         {currentTab === 'investigations' && (
           <InvestigationView
-            hotspots={HOTSPOTS_DATA}
+            hotspots={allHotspots}
             investigationIds={investigationIds}
             onSelectHotspot={setSelectedHotspot}
             onToggleInvestigation={handleToggleInvestigation}
@@ -181,21 +267,21 @@ export default function App() {
           />
         )}
 
-        {/* VIEW 4: HISTORY & PERSISTENCE (Section 19) */}
+        {/* VIEW 4: HISTORY & PERSISTENCE */}
         {currentTab === 'history' && (
           <HistoryView
-            hotspots={HOTSPOTS_DATA}
+            hotspots={allHotspots}
             onSelectHotspot={setSelectedHotspot}
           />
         )}
 
-        {/* VIEW 5: ABOUT THE SYSTEM (Section 29) */}
+        {/* VIEW 5: ABOUT THE SYSTEM */}
         {currentTab === 'about' && <About />}
 
-        {/* VIEW 6: FAQ (Section 30) */}
+        {/* VIEW 6: FAQ */}
         {currentTab === 'faq' && <FAQ />}
 
-        {/* VIEW 7: SECURITY & PRIVACY (Sections 43-53) */}
+        {/* VIEW 7: SECURITY & PRIVACY */}
         {currentTab === 'privacy' && <PrivacyView />}
 
         {/* VIEW 8: DEDICATED HOTSPOT DETAILS PAGE */}
@@ -209,7 +295,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Hotspot Inspection Modal / Drawer (Sections 14-28) */}
+      {/* Hotspot Inspection Modal / Drawer */}
       {selectedHotspot && (
         <HotspotDetails
           hotspot={selectedHotspot}
@@ -220,17 +306,17 @@ export default function App() {
       )}
 
       {/* Side-by-Side Comparison Modal */}
-      {showCompareModal && (
+      {showCompareModal && allHotspots.length >= 2 && (
         <ComparisonModal
-          hotspots={HOTSPOTS_DATA}
-          initialHotspotA={selectedHotspot || HOTSPOTS_DATA[0]}
-          initialHotspotB={HOTSPOTS_DATA[1]}
+          hotspots={allHotspots}
+          initialHotspotA={selectedHotspot || allHotspots[0]}
+          initialHotspotB={allHotspots[1]}
           onClose={() => setShowCompareModal(false)}
           onSelectHotspot={(h) => setSelectedHotspot(h)}
         />
       )}
 
-      {/* Standard Footer (Section 62) */}
+      {/* Standard Footer */}
       <Footer setCurrentTab={setCurrentTab} />
     </div>
   );

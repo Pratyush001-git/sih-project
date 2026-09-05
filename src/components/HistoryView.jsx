@@ -2,17 +2,28 @@ import { History, TrendingUp, Calendar, Repeat, ExternalLink } from 'lucide-reac
 
 export default function HistoryView({ hotspots = [], onSelectHotspot }) {
   // Compute aggregate metrics
-  const highPersistence = hotspots.filter(h => h.history.persistence >= 25);
-  const moderatePersistence = hotspots.filter(h => h.history.persistence >= 10 && h.history.persistence < 25);
-  const transientAnomalies = hotspots.filter(h => h.history.persistence < 10);
+  const highPersistence = hotspots.filter(h => h.history.highly_persistent_10plus === 1 || h.history.highly_persistent_10plus === '1');
+  const moderatePersistence = hotspots.filter(h =>
+    (h.history.persistent_3plus === 1 || h.history.persistent_3plus === '1') &&
+    !(h.history.highly_persistent_10plus === 1 || h.history.highly_persistent_10plus === '1')
+  );
+  const transientAnomalies = hotspots.filter(h =>
+    !(h.history.persistent_3plus === 1 || h.history.persistent_3plus === '1')
+  );
 
-  // Regional monthly FRP aggregate
+  // Compute real monthly FRP trends from ML data
+  const monthlyMap = { 1: { frp: 0, count: 0 }, 2: { frp: 0, count: 0 }, 3: { frp: 0, count: 0 } };
+  hotspots.forEach(h => {
+    const month = parseInt((h.observation.date || '2024-01-01').split('-')[1], 10);
+    if (monthlyMap[month]) {
+      monthlyMap[month].frp += h.observation.frp || 0;
+      monthlyMap[month].count += 1;
+    }
+  });
   const monthlyTrends = [
-    { month: 'November', avgFrp: 28, count: 42 },
-    { month: 'December', avgFrp: 34, count: 58 },
-    { month: 'January', avgFrp: 37, count: 64 },
-    { month: 'February', avgFrp: 41, count: 72 },
-    { month: 'March (Active)', avgFrp: 48, count: 86 }
+    { month: 'January', avgFrp: monthlyMap[1].count ? Math.round(monthlyMap[1].frp / monthlyMap[1].count * 10) / 10 : 0, count: monthlyMap[1].count },
+    { month: 'February', avgFrp: monthlyMap[2].count ? Math.round(monthlyMap[2].frp / monthlyMap[2].count * 10) / 10 : 0, count: monthlyMap[2].count },
+    { month: 'March', avgFrp: monthlyMap[3].count ? Math.round(monthlyMap[3].frp / monthlyMap[3].count * 10) / 10 : 0, count: monthlyMap[3].count }
   ];
 
   return (
@@ -44,7 +55,7 @@ export default function HistoryView({ hotspots = [], onSelectHotspot }) {
             <Repeat size={18} color="var(--priority-medium)" />
           </div>
           <div className="summary-card-value">{highPersistence.length}</div>
-          <div className="summary-card-subtext">Furnaces, Kilns & Foundry Clusters</div>
+          <div className="summary-card-subtext">Detected on ≥ 10 distinct days</div>
         </div>
 
         <div className="summary-card industrial-candidates">
@@ -53,7 +64,7 @@ export default function HistoryView({ hotspots = [], onSelectHotspot }) {
             <TrendingUp size={18} color="var(--brand-navy)" />
           </div>
           <div className="summary-card-value">{moderatePersistence.length}</div>
-          <div className="summary-card-subtext">Batch Smelting & Shift Operations</div>
+          <div className="summary-card-subtext">Persistent ≥ 3d, not ≥ 10d</div>
         </div>
 
         <div className="summary-card high-priority">
@@ -62,14 +73,14 @@ export default function HistoryView({ hotspots = [], onSelectHotspot }) {
             <History size={18} color="var(--text-muted)" />
           </div>
           <div className="summary-card-value">{transientAnomalies.length}</div>
-          <div className="summary-card-subtext">Acute Spikes or Single Burns</div>
+          <div className="summary-card-subtext">Not persistent (detected 1-2 days or first pass)</div>
         </div>
       </div>
 
       {/* Regional Thermal Power Trend Chart */}
       <div className="gis-card">
         <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-          Delhi NCR Regional Radiative Output Trend (5-Month Window)
+          Northern Zone FIRMS Data — Regional Radiative Output Trend (Jan–Mar 2024)
         </h2>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
           Repeated detections across the study area show an elevated thermal baseline in winter due to industrial furnace continuous cycles and brick manufacturing schedules.
@@ -97,15 +108,15 @@ export default function HistoryView({ hotspots = [], onSelectHotspot }) {
                     {t.month}
                   </span>
                   <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    ({t.count} hits)
+                    ({t.count.toLocaleString()} hits)
                   </span>
                 </div>
               );
             })}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-            <span>Source: NASA FIRMS VIIRS & MODIS Historical Ingestion Archive</span>
-            <span>Study Area: Delhi NCR Industrial Corridors</span>
+            <span>Source: NASA FIRMS VIIRS &amp; MODIS · XGBoost ML Classifier (Jan–Mar 2024)</span>
+            <span>Study Area: Northern Zone</span>
           </div>
         </div>
       </div>
@@ -145,7 +156,7 @@ export default function HistoryView({ hotspots = [], onSelectHotspot }) {
                     <strong style={{ color: 'var(--priority-high)' }}>{h.history.persistence}%</strong>
                   </td>
                   <td>{h.history.detection_days} / {h.history.observation_days} passes</td>
-                  <td>{h.context.nearest_industry_name} ({h.context.nearest_industry_m}m)</td>
+                  <td>{h.context.nearest_industry_m > 0 ? `${(h.context.nearest_industry_m/1000).toFixed(1)} km` : 'N/A'} — {h.context.nearest_industry_name}</td>
                   <td>
                     <span className="status-pill low" style={{ fontSize: '0.7rem' }}>
                       {h.classification.label}

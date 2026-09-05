@@ -1,21 +1,22 @@
 /**
  * ThermalWatch GIS — Service & API Integration Layer
  * Connects the UI to FIRMS ingestion, OSM spatial buffers, and Decoupled ML Inference
+ *
+ * NOTE: With ML data loaded asynchronously in App.jsx, most filtering now happens
+ * in App.jsx's useMemo. This service layer is kept for any direct query needs.
  */
-import { HOTSPOTS_DATA, INDUSTRIAL_CLUSTERS, PROJECT_FAQS } from '../data/hotspots';
+import { getHotspotsData, INDUSTRIAL_CLUSTERS, PROJECT_FAQS } from '../data/hotspots';
 
 /**
  * Fetch all thermal hotspots with optional client-side query filters
  */
 export async function fetchHotspots(filters = {}) {
-  // Simulate standard network latency
-  await new Promise(resolve => setTimeout(resolve, 80));
-
-  let results = [...HOTSPOTS_DATA];
+  const allData = getHotspotsData();
+  let results = [...allData];
 
   if (filters.searchQuery?.trim()) {
     const q = filters.searchQuery.toLowerCase();
-    results = results.filter(h => 
+    results = results.filter(h =>
       h.hotspot_id.toLowerCase().includes(q) ||
       h.location.area_name.toLowerCase().includes(q) ||
       h.location.sub_district.toLowerCase().includes(q) ||
@@ -41,7 +42,8 @@ export async function fetchHotspots(filters = {}) {
   }
 
   if (filters.nearIndustryOnly) {
-    results = results.filter(h => h.context.nearest_industry_m <= 250);
+    // Uses power infrastructure distance as proxy (distance_to_power_km * 1000)
+    results = results.filter(h => h.context.nearest_industry_m > 0 && h.context.nearest_industry_m <= 5000);
   }
 
   if (filters.fromDate) {
@@ -59,8 +61,8 @@ export async function fetchHotspots(filters = {}) {
  * Fetch a single hotspot by ID
  */
 export async function fetchHotspotById(id) {
-  await new Promise(resolve => setTimeout(resolve, 50));
-  const hotspot = HOTSPOTS_DATA.find(h => h.hotspot_id === id);
+  const allData = getHotspotsData();
+  const hotspot = allData.find(h => h.hotspot_id === id);
   if (!hotspot) {
     throw new Error(`Hotspot with ID "${id}" not found.`);
   }
@@ -70,14 +72,17 @@ export async function fetchHotspotById(id) {
 /**
  * Fetch summary metrics for dashboard cards
  */
-export async function fetchSummaryMetrics(hotspots = HOTSPOTS_DATA) {
+export async function fetchSummaryMetrics(hotspots) {
+  const data = hotspots || getHotspotsData();
   return {
-    activeHotspots: hotspots.length,
-    persistentSources: hotspots.filter(h => h.history.persistence >= 20).length,
-    industrialCandidates: hotspots.filter(h => 
-      h.classification.label.includes('Industrial') || h.context.nearest_industry_m <= 250
+    activeHotspots: data.length,
+    persistentSources: data.filter(h =>
+      h.history.persistent_3plus === 1 || h.history.persistent_3plus === '1'
     ).length,
-    highPriority: hotspots.filter(h => 
+    industrialCandidates: data.filter(h =>
+      h.classification.label === 'Industrial Candidate'
+    ).length,
+    highPriority: data.filter(h =>
       h.priority.level === 'CRITICAL' || h.priority.level === 'HIGH'
     ).length
   };
@@ -99,24 +104,26 @@ export async function fetchFAQs() {
 
 /**
  * Model API Boundary Contract (Section 21 & 22)
- * Demonstrates how the website sends feature vectors to the separate ML model
+ * Demonstrates how the website sends feature vectors to the separate ML model.
+ * In production this would call the actual XGBoost inference endpoint.
+ * For the Monday MVP, predictions are pre-computed in the CSV.
  */
 export async function simulateModelInference(features) {
   await new Promise(resolve => setTimeout(resolve, 150));
-  
-  // Predict classification based on thermal & spatial vector
+
+  // Route to XGBoost ML classes
   let label = "Other Thermal Anomaly";
   let confidence = 82;
 
-  if (features.frp > 70 && features.persistence < 10) {
-    label = "Industrial Fire";
-    confidence = 94;
-  } else if (features.persistence >= 25 && features.nearest_industry_m < 300) {
-    label = "Industrial Thermal Source";
+  if (features.frp > 50 && features.persistence >= 10 && features.power_within_5km) {
+    label = "Industrial Candidate";
     confidence = 92;
-  } else if (features.ndvi > 0.45) {
-    label = "Agricultural/Vegetation Fire";
-    confidence = 90;
+  } else if (features.ndvi > 0.45 && features.frp < 30) {
+    label = "Agricultural Burn";
+    confidence = 87;
+  } else if (features.ndvi > 0.35) {
+    label = "Vegetation Fire";
+    confidence = 84;
   }
 
   return {

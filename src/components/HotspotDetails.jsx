@@ -23,31 +23,51 @@ export default function HotspotDetails({
 
   const handleExportCSV = () => {
     const headers = [
-      'Hotspot_ID', 'Latitude', 'Longitude', 'Date', 'Time', 'Satellite', 'Instrument',
-      'FRP_MW', 'Brightness_Temp_K', 'Confidence_Pct', 'Nearest_Industry_m',
-      'Nearest_Road_m', 'Nearest_Residential_m', 'Persistence_Pct',
-      'Classification', 'Classification_Confidence', 'Priority_Level', 'Priority_Score'
+      'Hotspot_ID', 'FIRMS_ID', 'Latitude', 'Longitude', 'Date', 'Time',
+      'Satellite', 'Instrument', 'Day_Night',
+      'FRP_MW', 'Brightness_Temp_K', 'FIRMS_Confidence',
+      'ML_Classification', 'ML_Confidence_Pct',
+      'Priority_Level', 'Priority_Score',
+      'Detection_Days', 'Observation_Days', 'Persistence_Pct',
+      'Persistent_3plus', 'Highly_Persistent_10plus',
+      'Distance_to_Power_km', 'Power_Within_5km',
+      'NDVI', 'NDBI', 'NDWI',
+      'Prob_Agricultural_Burn', 'Prob_Industrial_Candidate',
+      'Prob_Other_Thermal_Anomaly', 'Prob_Vegetation_Fire'
     ];
 
+    const probs = hotspot.ml_probs || {};
     const row = [
       hotspot.hotspot_id,
+      hotspot.firms_id || '',
       hotspot.location.latitude,
       hotspot.location.longitude,
       hotspot.observation.date,
       hotspot.observation.time,
       hotspot.observation.satellite,
       hotspot.observation.instrument,
+      hotspot.observation.day_night,
       hotspot.observation.frp,
-      hotspot.observation.brightness_temperature,
+      hotspot.observation.brightness_temperature != null ? hotspot.observation.brightness_temperature : 'N/A',
       hotspot.observation.confidence,
-      hotspot.context.nearest_industry_m,
-      hotspot.context.nearest_road_m,
-      hotspot.context.nearest_residential_m,
-      hotspot.history.persistence,
       `"${hotspot.classification.label}"`,
       hotspot.classification.confidence,
       hotspot.priority.level,
-      hotspot.priority.score
+      hotspot.priority.score,
+      hotspot.history.detection_days,
+      hotspot.history.observation_days,
+      hotspot.history.persistence,
+      hotspot.history.persistent_3plus,
+      hotspot.history.highly_persistent_10plus,
+      hotspot.context.nearest_industry_m > 0 ? (hotspot.context.nearest_industry_m / 1000).toFixed(3) : 'N/A',
+      hotspot.context.industrial_feature_count,
+      hotspot.satellite_context.ndvi != null ? hotspot.satellite_context.ndvi : 'N/A',
+      hotspot.satellite_context.ndbi != null ? hotspot.satellite_context.ndbi : 'N/A',
+      hotspot.satellite_context.ndwi != null ? hotspot.satellite_context.ndwi : 'N/A',
+      probs.agricultural_burn != null ? probs.agricultural_burn : 'N/A',
+      probs.industrial_candidate != null ? probs.industrial_candidate : 'N/A',
+      probs.other_thermal_anomaly != null ? probs.other_thermal_anomaly : 'N/A',
+      probs.vegetation_fire != null ? probs.vegetation_fire : 'N/A'
     ];
 
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), row.join(',')].join('\n');

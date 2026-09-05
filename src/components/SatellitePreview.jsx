@@ -21,7 +21,8 @@ export default function SatellitePreview({ hotspot }) {
             <span>Satellite Image Unavailable</span>
           </div>
           <div>
-            <strong>Reason:</strong> Cloudy conditions / insufficient valid surface reflectance pixels (Cloud cover: {hotspot.satellite_context.cloud_cover_pct}%).
+            <strong>Reason:</strong> Cloudy conditions / insufficient valid surface reflectance pixels
+            {hotspot.satellite_context.cloud_cover_pct != null ? ` (Cloud cover: ${hotspot.satellite_context.cloud_cover_pct}%)` : ''}.
           </div>
           <div style={{ fontSize: '0.78rem', color: '#78350f' }}>
             The system did not invent, impute or derive missing optical spectral indices. Anomaly classification relies on thermal dual-band FIRMS observations and OSM spatial tags.
@@ -127,7 +128,10 @@ export default function SatellitePreview({ hotspot }) {
           <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', background: 'var(--bg-surface-subtle)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-sm)', marginTop: '0.75rem' }}>
             <strong>Sentinel-2 Environmental Assessment:</strong> {hotspot.satellite_context.land_description}
             <div className="text-sm" style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Observed: {hotspot.satellite_context.observation_date} | Cloud Occlusion: {hotspot.satellite_context.cloud_cover_pct}%
+              Observed: {hotspot.satellite_context.observation_date}
+              {hotspot.satellite_context.cloud_cover_pct != null
+                ? ` | Cloud Occlusion: ${hotspot.satellite_context.cloud_cover_pct}%`
+                : ' | Cloud cover: N/A (not in ML dataset)'}
             </div>
           </div>
         </div>

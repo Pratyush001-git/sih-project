@@ -1,12 +1,19 @@
 import { Flame, Repeat, Factory, AlertTriangle } from 'lucide-react';
 
 export default function SummaryCards({ hotspots = [] }) {
-  // Compute key summary figures based on dataset
+  // Compute key summary figures based on ML dataset
   const activeCount = hotspots.length;
-  const persistentCount = hotspots.filter(h => h.history.persistence >= 20).length;
-  const industrialCount = hotspots.filter(h => 
-    h.classification.label.includes('Industrial') || (h.context.nearest_industry_m <= 250)
+
+  // persistent_3plus flag = detected on ≥ 3 distinct days
+  const persistentCount = hotspots.filter(h =>
+    h.history.persistent_3plus === 1 || h.history.persistent_3plus === '1'
   ).length;
+
+  // Industrial Candidate is the ML class for industrial-origin anomalies
+  const industrialCount = hotspots.filter(h =>
+    h.classification.label === 'Industrial Candidate'
+  ).length;
+
   const highPriorityCount = hotspots.filter(h => 
     h.priority.level === 'CRITICAL' || h.priority.level === 'HIGH'
   ).length;
@@ -33,7 +40,7 @@ export default function SummaryCards({ hotspots = [] }) {
         </div>
         <div className="summary-card-value">{persistentCount}</div>
         <div className="summary-card-subtext">
-          ≥ 20% detection days (90d)
+          Detected on ≥ 3 distinct days (Jan–Mar 2024)
         </div>
       </div>
 
@@ -45,7 +52,7 @@ export default function SummaryCards({ hotspots = [] }) {
         </div>
         <div className="summary-card-value">{industrialCount}</div>
         <div className="summary-card-subtext">
-          Near OSM verified industrial zones
+          XGBoost ML class: Industrial Candidate
         </div>
       </div>
 
