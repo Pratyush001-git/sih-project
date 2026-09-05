@@ -36,7 +36,7 @@ export default function App() {
   // Investigation IDs saved in localStorage for analyst persistence
   const [investigationIds, setInvestigationIds] = useState(() => {
     try {
-      const saved = localStorage.getItem('sih_investigation_ids');
+      const saved = localStorage.getItem('thermalwatch_investigation_ids');
       return saved ? JSON.parse(saved) : ['H1041', 'H1024'];
     } catch {
       return ['H1041', 'H1024'];
@@ -45,7 +45,7 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('sih_investigation_ids', JSON.stringify(investigationIds));
+      localStorage.setItem('thermalwatch_investigation_ids', JSON.stringify(investigationIds));
     } catch {
       // Storage error fallback
     }

@@ -9,7 +9,7 @@ export default function About() {
           <h1>About the System</h1>
         </div>
         <p style={{ color: 'var(--text-secondary)', marginTop: '0.35rem', fontSize: '1.05rem' }}>
-          SIH SH26162 — AI-Based Detection & Classification of Industrial Fires and Persistent Thermal Sources
+          AI-Based Detection & Classification of Industrial Fires and Persistent Thermal Sources
         </p>
       </div>
 

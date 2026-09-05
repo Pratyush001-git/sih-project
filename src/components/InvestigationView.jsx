@@ -23,7 +23,7 @@ export default function InvestigationView({
   // Officer notes & dispatch status state stored in localStorage
   const [investigationData, setInvestigationData] = useState(() => {
     try {
-      const saved = localStorage.getItem('sih_investigation_metadata');
+      const saved = localStorage.getItem('thermalwatch_investigation_metadata');
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -32,7 +32,7 @@ export default function InvestigationView({
 
   useEffect(() => {
     try {
-      localStorage.setItem('sih_investigation_metadata', JSON.stringify(investigationData));
+      localStorage.setItem('thermalwatch_investigation_metadata', JSON.stringify(investigationData));
     } catch {
       // ignore
     }
@@ -94,7 +94,7 @@ export default function InvestigationView({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `SH26162_Investigation_Queue_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `ThermalWatch_Investigation_Queue_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -103,7 +103,7 @@ export default function InvestigationView({
   // Batch GeoJSON Export for GIS Mapping Teams
   const handleExportGeoJSON = () => {
     if (markedHotspots.length === 0) return;
-    exportToGeoJSON(markedHotspots, `SH26162_Investigation_GIS_${new Date().toISOString().split('T')[0]}.geojson`);
+    exportToGeoJSON(markedHotspots, `ThermalWatch_Investigation_GIS_${new Date().toISOString().split('T')[0]}.geojson`);
   };
 
   const handlePrint = () => {

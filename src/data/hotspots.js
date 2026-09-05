@@ -1,5 +1,5 @@
 /**
- * SIH SH26162 — Thermal Data Model & Benchmarking Records
+ * ThermalWatch GIS — Thermal Data Model & Benchmarking Records
  * NASA FIRMS VIIRS & MODIS Thermal Observations with OSM & Sentinel-2 Attributes
  */
 

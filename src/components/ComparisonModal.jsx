@@ -89,7 +89,7 @@ export default function ComparisonModal({
             </div>
           </div>
 
-          {/* Quick Demo Pre-sets for SIH Judges */}
+          {/* Quick Demo Benchmarking Presets */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <span className="text-sm" style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
               Benchmarking Presets:

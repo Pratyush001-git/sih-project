@@ -1,5 +1,5 @@
 /**
- * SIH SH26162 — Service & API Integration Layer
+ * ThermalWatch GIS — Service & API Integration Layer
  * Connects the UI to FIRMS ingestion, OSM spatial buffers, and Decoupled ML Inference
  */
 import { HOTSPOTS_DATA, INDUSTRIAL_CLUSTERS, PROJECT_FAQS } from '../data/hotspots';

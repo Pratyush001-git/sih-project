@@ -1,5 +1,5 @@
 /**
- * SIH SH26162 — Backward compatibility re-export
+ * ThermalWatch GIS — Backward compatibility re-export
  * Proxies to canonical data file in src/data/hotspots.js
  */
 export {

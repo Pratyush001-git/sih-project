@@ -54,7 +54,7 @@ export default function HotspotDetails({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `SH26162_Hotspot_${hotspot.hotspot_id}_Report.csv`);
+    link.setAttribute('download', `ThermalWatch_Hotspot_${hotspot.hotspot_id}_Report.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

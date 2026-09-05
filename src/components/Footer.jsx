@@ -5,7 +5,7 @@ export default function Footer({ setCurrentTab }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--brand-navy)' }}>
-              SIH SH26162 — ThermalWatch GIS
+              ThermalWatch GIS
             </div>
             <div style={{ color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
               Satellite-assisted industrial thermal anomaly and persistence monitoring
@@ -86,7 +86,7 @@ export default function Footer({ setCurrentTab }) {
             <strong>Operational Notice:</strong> This system is for decision support and prioritization. It does not replace official verification or emergency response systems.
           </div>
           <div>
-            &copy; 2026 SIH Project Team SH26162. All rights reserved.
+            &copy; 2026 ThermalWatch GIS Project Team. All rights reserved.
           </div>
         </div>
       </div>
