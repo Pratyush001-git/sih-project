@@ -35,11 +35,65 @@ const INITIAL_FILTERS = {
   toDate: ''
 };
 
+const VALID_TABS = [
+  'dashboard',
+  'explorer',
+  'investigations',
+  'history',
+  'about',
+  'faq',
+  'privacy',
+  'details'
+];
+
+function getInitialTab() {
+  if (typeof window !== 'undefined') {
+    const hash = window.location.hash.replace(/^#[/]?/, '').split('?')[0].trim().toLowerCase();
+    if (VALID_TABS.includes(hash)) {
+      return hash;
+    }
+    try {
+      const saved = localStorage.getItem('thermalwatch_active_tab');
+      if (saved && VALID_TABS.includes(saved)) {
+        return saved;
+      }
+    } catch {
+      // Storage error fallback
+    }
+  }
+  return 'dashboard';
+}
+
 export default function App() {
-  const [currentTab, setCurrentTab] = useState('dashboard');
+  const [currentTab, setCurrentTab] = useState(getInitialTab);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [selectedHotspot, setSelectedHotspot] = useState(null);
   const [showCompareModal, setShowCompareModal] = useState(false);
+
+  // Sync tab with URL hash and localStorage so refresh retains active page
+  useEffect(() => {
+    try {
+      localStorage.setItem('thermalwatch_active_tab', currentTab);
+    } catch {
+      // Storage error fallback
+    }
+    const currentHash = window.location.hash.replace(/^#[/]?/, '').split('?')[0].trim().toLowerCase();
+    if (currentHash !== currentTab) {
+      window.location.hash = currentTab;
+    }
+  }, [currentTab]);
+
+  // Support browser back/forward buttons
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace(/^#[/]?/, '').split('?')[0].trim().toLowerCase();
+      if (VALID_TABS.includes(hash)) {
+        setCurrentTab(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // ML dataset state
   const [allHotspots, setAllHotspots] = useState([]);
@@ -71,6 +125,17 @@ export default function App() {
     }
   });
 
+  // Purge any stale legacy mock IDs (e.g. H1041, H1024) once the dataset is loaded
+  useEffect(() => {
+    if (allHotspots.length > 0 && investigationIds.length > 0) {
+      const validHotspotIds = new Set(allHotspots.map(h => h.hotspot_id));
+      setInvestigationIds((prev) => {
+        const cleaned = prev.filter((id) => validHotspotIds.has(id));
+        return cleaned.length !== prev.length ? cleaned : prev;
+      });
+    }
+  }, [allHotspots]);
+
   useEffect(() => {
     try {
       localStorage.setItem('thermalwatch_investigation_ids', JSON.stringify(investigationIds));
@@ -78,6 +143,38 @@ export default function App() {
       // Storage error fallback
     }
   }, [investigationIds]);
+
+  // Remember selected hotspot ID across refreshes
+  useEffect(() => {
+    if (selectedHotspot?.hotspot_id) {
+      try {
+        localStorage.setItem('thermalwatch_selected_hotspot_id', selectedHotspot.hotspot_id);
+      } catch {
+        // Storage error fallback
+      }
+    }
+  }, [selectedHotspot]);
+
+  useEffect(() => {
+    if (allHotspots.length > 0 && !selectedHotspot) {
+      try {
+        const savedId = localStorage.getItem('thermalwatch_selected_hotspot_id');
+        if (savedId) {
+          const found = allHotspots.find(h => h.hotspot_id === savedId);
+          if (found) setSelectedHotspot(found);
+        }
+      } catch {
+        // Storage error fallback
+      }
+    }
+  }, [allHotspots, selectedHotspot]);
+
+  // Compute number of actually marked hotspots present in the loaded dataset
+  const validInvestigationCount = useMemo(() => {
+    if (!allHotspots.length || !investigationIds.length) return 0;
+    const idSet = new Set(investigationIds);
+    return allHotspots.filter(h => idSet.has(h.hotspot_id)).length;
+  }, [allHotspots, investigationIds]);
 
   const handleToggleInvestigation = (hotspotId) => {
     setInvestigationIds((prev) =>
@@ -171,15 +268,16 @@ export default function App() {
       }}>
         <div style={{ textAlign: 'center' }}>
           <div className="loading-spinner" style={{ margin: '0 auto 1.25rem' }} />
-          <h2 style={{ color: 'var(--brand-navy)', marginBottom: '0.5rem' }}>
-            Loading ML Prediction Dataset
+          <h2 style={{
+            color: 'var(--brand-navy)',
+            marginBottom: '0.5rem',
+            fontWeight: 700,
+            fontSize: '1.25rem',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase'
+          }}>
+            INTEGRATING WEBSITE...
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem' }}>
-            Fetching 31,422 FIRMS thermal anomaly predictions (Northern Zone, Jan–Mar 2024)...
-          </p>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', marginTop: '0.5rem' }}>
-            XGBoost model · Sentinel-2 + FIRMS · ~91% accuracy
-          </p>
         </div>
       </div>
     );
@@ -218,7 +316,7 @@ export default function App() {
       <Header
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
-        investigationCount={investigationIds.length}
+        investigationCount={validInvestigationCount}
         onOpenCompare={() => setShowCompareModal(true)}
       />
 

@@ -174,7 +174,7 @@ export default function Header({
             onClick={() => handleNavClick('investigations')}
           >
             <BookmarkCheck size={18} />
-            <span>Investigation List ({investigationCount})</span>
+            <span>Investigation List{investigationCount > 0 ? ` (${investigationCount})` : ''}</span>
           </button>
           <button 
             type="button"
