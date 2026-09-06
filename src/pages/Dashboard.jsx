@@ -60,6 +60,7 @@ export default function Dashboard({
         hotspots={hotspots}
         selectedHotspot={selectedHotspot}
         onSelectHotspot={onSelectHotspot}
+        searchQuery={filters.searchQuery}
       />
 
       {/* Hotspot Filters (Section 11, 12) */}

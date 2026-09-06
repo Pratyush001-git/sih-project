@@ -69,15 +69,6 @@ export default function Footer({ setCurrentTab }) {
             >
               FAQ
             </button>
-            <span style={{ color: 'var(--border-strong)' }}>|</span>
-            <button 
-              type="button" 
-              className="btn-link footer-link" 
-              onClick={() => setCurrentTab('privacy')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              Privacy & Security
-            </button>
           </div>
         </div>
 

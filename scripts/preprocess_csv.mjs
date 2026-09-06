@@ -40,6 +40,116 @@ function formatTime(t) {
   return `${s.slice(0, 2)}:${s.slice(2)} UTC`;
 }
 
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const INDUSTRIAL_CLUSTERS = [
+  { name: "Bawana Industrial Area", sub: "North Delhi NCR", lat: 28.800, lon: 77.052, radiusKm: 15 },
+  { name: "Okhla Industrial Area", sub: "South Delhi NCR", lat: 28.530, lon: 77.282, radiusKm: 15 },
+  { name: "Sahibabad Industrial Area", sub: "Ghaziabad NCR", lat: 28.665, lon: 77.355, radiusKm: 15 },
+  { name: "Mayapuri Industrial Area", sub: "West Delhi NCR", lat: 28.636, lon: 77.125, radiusKm: 12 },
+  { name: "Faridabad Sector 24 Industrial Belt", sub: "Faridabad NCR", lat: 28.378, lon: 77.325, radiusKm: 18 },
+  { name: "Wazirpur Industrial Area", sub: "North West Delhi NCR", lat: 28.702, lon: 77.170, radiusKm: 12 },
+  { name: "IMT Manesar Industrial Complex", sub: "Gurugram NCR", lat: 28.355, lon: 76.935, radiusKm: 18 },
+  { name: "Narela Industrial Zone", sub: "North Delhi NCR", lat: 28.855, lon: 77.090, radiusKm: 12 },
+  { name: "Bhiwadi Industrial Cluster", sub: "Alwar NCR", lat: 28.210, lon: 76.860, radiusKm: 16 },
+  { name: "Sonipat / Rai Industrial Belt", sub: "Sonipat, Haryana", lat: 28.990, lon: 77.020, radiusKm: 18 },
+  { name: "Panipat Industrial Belt", sub: "Panipat, Haryana", lat: 29.390, lon: 76.970, radiusKm: 20 },
+  { name: "Noida / Greater Noida Sector", sub: "Gautam Buddha Nagar NCR", lat: 28.510, lon: 77.420, radiusKm: 18 }
+];
+
+const REGIONAL_HUBS = [
+  { name: "Delhi Urban / NCR Core", sub: "Delhi NCR", lat: 28.640, lon: 77.210 },
+  { name: "Gurugram Sub-District", sub: "Gurugram, Haryana", lat: 28.455, lon: 77.030 },
+  { name: "Faridabad Sub-District", sub: "Faridabad, Haryana", lat: 28.410, lon: 77.310 },
+  { name: "Ghaziabad Sub-District", sub: "Ghaziabad, UP", lat: 28.670, lon: 77.450 },
+  { name: "Rohtak Industrial Belt", sub: "Rohtak, Haryana", lat: 28.895, lon: 76.600 },
+  { name: "Hisar Sector", sub: "Hisar, Haryana", lat: 29.150, lon: 75.720 },
+  { name: "Karnal Agri-Zone", sub: "Karnal, Haryana", lat: 29.685, lon: 76.990 },
+  { name: "Kurukshetra Plains", sub: "Kurukshetra, Haryana", lat: 29.965, lon: 76.875 },
+  { name: "Ambala Zone", sub: "Ambala, Haryana", lat: 30.375, lon: 76.780 },
+  { name: "Yamunanagar Industrial Belt", sub: "Yamunanagar, Haryana", lat: 30.130, lon: 77.290 },
+  { name: "Ludhiana Agri-Industrial Belt", sub: "Ludhiana, Punjab", lat: 30.900, lon: 75.855 },
+  { name: "Jalandhar Zone", sub: "Jalandhar, Punjab", lat: 31.325, lon: 75.580 },
+  { name: "Amritsar Border Corridor", sub: "Amritsar, Punjab", lat: 31.635, lon: 74.870 },
+  { name: "Patiala Plains", sub: "Patiala, Punjab", lat: 30.340, lon: 76.385 },
+  { name: "Bathinda Thermal / Agri Zone", sub: "Bathinda, Punjab", lat: 30.210, lon: 74.945 },
+  { name: "Sangrur Agricultural Belt", sub: "Sangrur, Punjab", lat: 30.245, lon: 75.845 },
+  { name: "Firozpur Corridor", sub: "Firozpur, Punjab", lat: 30.925, lon: 74.610 },
+  { name: "Chandigarh Tri-City", sub: "Chandigarh / Mohali", lat: 30.735, lon: 76.790 },
+  { name: "Jaipur Metropolitan Zone", sub: "Jaipur, Rajasthan", lat: 26.915, lon: 75.785 },
+  { name: "Alwar Rural / Industrial Corridor", sub: "Alwar, Rajasthan", lat: 27.570, lon: 76.615 },
+  { name: "Kota Industrial Zone", sub: "Kota, Rajasthan", lat: 25.180, lon: 75.835 },
+  { name: "Jodhpur Arid Zone", sub: "Jodhpur, Rajasthan", lat: 26.240, lon: 73.020 },
+  { name: "Bikaner Corridor", sub: "Bikaner, Rajasthan", lat: 28.020, lon: 73.310 },
+  { name: "Ajmer Valley", sub: "Ajmer, Rajasthan", lat: 26.450, lon: 74.640 },
+  { name: "Sri Ganganagar Canal Belt", sub: "Sri Ganganagar, Rajasthan", lat: 29.905, lon: 73.880 },
+  { name: "Meerut Industrial Belt", sub: "Meerut, UP", lat: 28.985, lon: 77.705 },
+  { name: "Mathura / Refinery Sector", sub: "Mathura, UP", lat: 27.495, lon: 77.675 },
+  { name: "Agra Corridor", sub: "Agra, UP", lat: 27.180, lon: 78.010 },
+  { name: "Aligarh Sector", sub: "Aligarh, UP", lat: 27.895, lon: 78.085 },
+  { name: "Moradabad Zone", sub: "Moradabad, UP", lat: 28.840, lon: 78.775 },
+  { name: "Bareilly Plains", sub: "Bareilly, UP", lat: 28.365, lon: 79.415 },
+  { name: "Saharanpur Timber Belt", sub: "Saharanpur, UP", lat: 29.965, lon: 77.545 },
+  { name: "Muzaffarnagar Sugar Belt", sub: "Muzaffarnagar, UP", lat: 29.470, lon: 77.705 },
+  { name: "Kanpur Industrial Hub", sub: "Kanpur, UP", lat: 26.450, lon: 80.330 },
+  { name: "Lucknow Central Zone", sub: "Lucknow, UP", lat: 26.850, lon: 80.950 },
+  { name: "Gwalior Northern Ridge", sub: "Gwalior, MP", lat: 26.220, lon: 78.180 },
+  { name: "Dehradun Foothills", sub: "Dehradun, Uttarakhand", lat: 30.315, lon: 78.030 },
+  { name: "Haridwar Industrial Area", sub: "Haridwar, Uttarakhand", lat: 29.945, lon: 78.165 },
+  { name: "Jammu Foothills", sub: "Jammu, J&K", lat: 32.725, lon: 74.860 }
+];
+
+function deriveLocation(lat, lon) {
+  // 1. Check industrial clusters first
+  for (const c of INDUSTRIAL_CLUSTERS) {
+    if (haversineKm(lat, lon, c.lat, c.lon) <= c.radiusKm) {
+      return {
+        area_name: `${c.name} (${lat.toFixed(3)}N, ${lon.toFixed(3)}E)`,
+        sub_district: c.sub
+      };
+    }
+  }
+
+  // 2. Check closest regional hub
+  let closestHub = null;
+  let minDistance = Infinity;
+  for (const h of REGIONAL_HUBS) {
+    const d = haversineKm(lat, lon, h.lat, h.lon);
+    if (d < minDistance) {
+      minDistance = d;
+      closestHub = h;
+    }
+  }
+
+  if (closestHub && minDistance <= 65) {
+    return {
+      area_name: `${closestHub.name} (${lat.toFixed(3)}N, ${lon.toFixed(3)}E)`,
+      sub_district: closestHub.sub
+    };
+  }
+
+  // 3. Fallback to broad Northern Zone geographic state
+  let state = 'Northern Zone';
+  if (lat >= 29.5 && lon <= 76.5) state = 'Punjab Rural Corridor';
+  else if (lat >= 28.0 && lat < 30.5 && lon >= 75.0 && lon <= 77.5) state = 'Haryana Corridor';
+  else if (lat < 28.5 && lon <= 77.0) state = 'Rajasthan Corridor';
+  else if (lon > 77.5 && lat < 30.0) state = 'Uttar Pradesh Corridor';
+  else if (lat >= 31.0) state = 'Northern Himalayan Belt';
+
+  return {
+    area_name: `${state} (${lat.toFixed(3)}N, ${lon.toFixed(3)}E)`,
+    sub_district: state
+  };
+}
+
 /** Derive priority level + score from ML fields */
 function derivePriority(row) {
   const cls = row.predicted_class;
@@ -242,14 +352,16 @@ const hotspots = rows.map((row, idx) => {
     frp: (i + 1) === month ? Math.round(frp) : 0
   }));
 
+  const loc = deriveLocation(lat, lon);
+
   return {
     hotspot_id: `ML${idx}`,
     firms_id: row.firms_id,
     location: {
       latitude: lat,
       longitude: lon,
-      area_name: `${cls} | ${lat.toFixed(3)}N, ${lon.toFixed(3)}E`,
-      sub_district: 'Northern Zone'
+      area_name: loc.area_name,
+      sub_district: loc.sub_district
     },
     observation: {
       date: row.acq_date,

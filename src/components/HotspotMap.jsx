@@ -10,7 +10,8 @@ import { STUDY_AREA_CENTER, STUDY_AREA_ZOOM, INDUSTRIAL_CLUSTERS } from '../data
 export default function HotspotMap({
   hotspots = [],
   selectedHotspot,
-  onSelectHotspot
+  onSelectHotspot,
+  searchQuery = ''
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -298,6 +299,47 @@ export default function HotspotMap({
     }
   }, [selectedHotspot]);
 
+  // When an area or query is searched, focus on the map and zoom directly to that area
+  const lastSearchQueryRef = useRef('');
+  useEffect(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q || !mapInstanceRef.current) {
+      lastSearchQueryRef.current = q;
+      return;
+    }
+    if (q === lastSearchQueryRef.current) return;
+    lastSearchQueryRef.current = q;
+
+    // 1. Check if search query matches any known industrial cluster
+    const cluster = INDUSTRIAL_CLUSTERS.find(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.id.toLowerCase().includes(q) ||
+      q.includes(c.id.toLowerCase())
+    );
+
+    if (cluster) {
+      mapInstanceRef.current.flyToBounds(cluster.bounds, {
+        padding: [60, 60],
+        maxZoom: 14,
+        duration: 1.2
+      });
+      return;
+    }
+
+    // 2. Otherwise zoom to the bounding box of matching hotspots
+    if (hotspots.length > 0) {
+      const pts = hotspots.slice(0, 150).map(h => [h.location.latitude, h.location.longitude]);
+      const bounds = L.latLngBounds(pts);
+      if (bounds.isValid()) {
+        mapInstanceRef.current.flyToBounds(bounds, {
+          padding: [60, 60],
+          maxZoom: 14,
+          duration: 1.2
+        });
+      }
+    }
+  }, [searchQuery, hotspots]);
+
   const handleResetView = () => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.flyTo(STUDY_AREA_CENTER, STUDY_AREA_ZOOM, { duration: 1 });
@@ -314,57 +356,54 @@ export default function HotspotMap({
       <div className="map-header-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
           <Layers size={18} color="var(--brand-navy)" />
-          <h2 style={{ fontSize: '1rem', fontWeight: 600 }}>
-            Interactive Thermal GIS Map
-          </h2>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600 }}>Active Thermal GIS Map</h2>
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            NASA FIRMS VIIRS &bull; XGBoost ML Predictions &bull; Northern Zone Jan–Mar 2024
-            {capNote && <span style={{ color: '#d97706', marginLeft: '0.5rem', fontSize: '0.7rem' }}>{capNote}</span>}
+            {capNote}
           </span>
         </div>
 
-        <div className="map-layer-toggles">
-          <label className="filter-chip">
-            <input
-              type="checkbox"
-              checked={layers.hotspots}
-              onChange={(e) => setLayers({ ...layers, hotspots: e.target.checked })}
-            />
-            <span>Hotspots</span>
-          </label>
-
-          <label className="filter-chip">
-            <input
-              type="checkbox"
-              checked={layers.industrial}
-              onChange={(e) => setLayers({ ...layers, industrial: e.target.checked })}
-            />
-            <span>Industrial Areas</span>
-          </label>
-
-          <label className="filter-chip">
-            <input
-              type="checkbox"
-              checked={layers.roads}
-              onChange={(e) => setLayers({ ...layers, roads: e.target.checked })}
-            />
-            <span>Roads Buffer</span>
-          </label>
-
-          <label className="filter-chip">
-            <input
-              type="checkbox"
-              checked={layers.residential}
-              onChange={(e) => setLayers({ ...layers, residential: e.target.checked })}
-            />
-            <span>Residential Areas</span>
-          </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          {/* Layer Checkboxes */}
+          <div className="map-layer-toggles">
+            <label className="checkbox-label" title="Toggle ML prediction thermal anomaly markers">
+              <input
+                type="checkbox"
+                checked={layers.hotspots}
+                onChange={(e) => setLayers({ ...layers, hotspots: e.target.checked })}
+              />
+              <span>Hotspots ({hotspots.length})</span>
+            </label>
+            <label className="checkbox-label" title="Toggle OSM verified industrial cluster zones">
+              <input
+                type="checkbox"
+                checked={layers.industrial}
+                onChange={(e) => setLayers({ ...layers, industrial: e.target.checked })}
+              />
+              <span>OSM Industrial Zones</span>
+            </label>
+            <label className="checkbox-label" title="Toggle logistics transport corridor lines">
+              <input
+                type="checkbox"
+                checked={layers.roads}
+                onChange={(e) => setLayers({ ...layers, roads: e.target.checked })}
+              />
+              <span>Corridors</span>
+            </label>
+            <label className="checkbox-label" title="Toggle dense residential buffer zones">
+              <input
+                type="checkbox"
+                checked={layers.residential}
+                onChange={(e) => setLayers({ ...layers, residential: e.target.checked })}
+              />
+              <span>Settlements</span>
+            </label>
+          </div>
 
           <button
             type="button"
             className="btn btn-secondary btn-sm"
             onClick={handleResetView}
-            title="Reset Map to Northern Zone Study Area"
+            title="Reset map view to Northern Zone center"
           >
             <RotateCcw size={14} />
             <span>Reset View</span>
@@ -380,45 +419,6 @@ export default function HotspotMap({
         tabIndex={0}
         aria-label="Leaflet GIS Map showing thermal hotspots"
       />
-
-      {/* Map Legend Overlay */}
-      <div className="map-legend-overlay">
-        <div className="legend-title">Priority Legend</div>
-        <div className="legend-item">
-          <span className="legend-dot" style={{ backgroundColor: '#dc2626' }}></span>
-          <span>Critical Priority</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-dot" style={{ backgroundColor: '#ea580c' }}></span>
-          <span>High Priority</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-dot" style={{ backgroundColor: '#d97706' }}></span>
-          <span>Medium Priority</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-dot" style={{ backgroundColor: '#16a34a' }}></span>
-          <span>Low Priority</span>
-        </div>
-        <div style={{ marginTop: '0.45rem', paddingTop: '0.45rem', borderTop: '1px solid #e2e8f0', color: '#64748b', fontSize: '0.7rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%', border: '2px solid #fff', backgroundColor: '#dc2626', textAlign: 'center', fontSize: '8px', fontWeight: 700, lineHeight: '10px', color: '#fff' }}>I</span>
-            <span>Industrial Candidate</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
-            <span style={{ display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%', border: '2px solid #fff', backgroundColor: '#16a34a', textAlign: 'center', fontSize: '8px', fontWeight: 700, lineHeight: '10px', color: '#fff' }}>A</span>
-            <span>Agricultural Burn</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
-            <span style={{ display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%', border: '2px solid #fff', backgroundColor: '#16a34a', textAlign: 'center', fontSize: '8px', fontWeight: 700, lineHeight: '10px', color: '#fff' }}>V</span>
-            <span>Vegetation Fire</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', border: '1px dashed #1e3a8a', backgroundColor: 'rgba(59,130,246,0.2)', marginRight: '4px' }}></span>
-            <span>OSM Industrial Zone</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -1,11 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ComparisonModal from './components/ComparisonModal';
 import HotspotDetails from './components/HotspotDetails';
 import InvestigationView from './components/InvestigationView';
 import HistoryView from './components/HistoryView';
-import PrivacyView from './components/PrivacyView';
 
 // Canonical Pages
 import Dashboard from './pages/Dashboard';
@@ -14,7 +13,7 @@ import About from './pages/About';
 import FAQ from './pages/FAQ';
 import HotspotDetailsPage from './pages/HotspotDetailsPage';
 
-import { loadHotspotsData } from './data/hotspots';
+import { loadHotspotsData, INDUSTRIAL_CLUSTERS } from './data/hotspots';
 
 // ML class labels from XGBoost model
 export const ML_CLASSES = [
@@ -42,7 +41,6 @@ const VALID_TABS = [
   'history',
   'about',
   'faq',
-  'privacy',
   'details'
 ];
 
@@ -144,30 +142,42 @@ export default function App() {
     }
   }, [investigationIds]);
 
-  // Remember selected hotspot ID across refreshes
-  useEffect(() => {
-    if (selectedHotspot?.hotspot_id) {
+  const handleSelectHotspot = (h) => {
+    setSelectedHotspot(h);
+    if (h?.hotspot_id) {
       try {
-        localStorage.setItem('thermalwatch_selected_hotspot_id', selectedHotspot.hotspot_id);
+        localStorage.setItem('thermalwatch_selected_hotspot_id', h.hotspot_id);
       } catch {
         // Storage error fallback
       }
     }
-  }, [selectedHotspot]);
+  };
 
+  const handleCloseHotspot = () => {
+    setSelectedHotspot(null);
+    try {
+      localStorage.removeItem('thermalwatch_selected_hotspot_id');
+    } catch {
+      // Storage error fallback
+    }
+  };
+
+  // Restore selected hotspot ONLY once on mount if user is on the dedicated details page
+  const initialRestoreDone = useRef(false);
   useEffect(() => {
-    if (allHotspots.length > 0 && !selectedHotspot) {
+    if (allHotspots.length > 0 && !initialRestoreDone.current) {
+      initialRestoreDone.current = true;
       try {
         const savedId = localStorage.getItem('thermalwatch_selected_hotspot_id');
-        if (savedId) {
-          const found = allHotspots.find(h => h.hotspot_id === savedId);
+        if (savedId && currentTab === 'details') {
+          const found = allHotspots.find((h) => h.hotspot_id === savedId);
           if (found) setSelectedHotspot(found);
         }
       } catch {
         // Storage error fallback
       }
     }
-  }, [allHotspots, selectedHotspot]);
+  }, [allHotspots, currentTab]);
 
   // Compute number of actually marked hotspots present in the loaded dataset
   const validInvestigationCount = useMemo(() => {
@@ -195,14 +205,33 @@ export default function App() {
     return allHotspots.filter((h) => {
       // 1. Search Query
       if (filters.searchQuery.trim()) {
-        const q = filters.searchQuery.toLowerCase();
+        const q = filters.searchQuery.toLowerCase().trim();
         const matchesId = h.hotspot_id.toLowerCase().includes(q);
         const matchesArea = h.location.area_name.toLowerCase().includes(q);
         const matchesSub = h.location.sub_district.toLowerCase().includes(q);
         const matchesIndustry = h.context.nearest_industry_name.toLowerCase().includes(q);
         const matchesClass = h.classification.label.toLowerCase().includes(q);
 
-        if (!matchesId && !matchesArea && !matchesSub && !matchesIndustry && !matchesClass) {
+        // Also check if search query matches an industrial cluster by center distance
+        let matchesCluster = false;
+        for (const cluster of INDUSTRIAL_CLUSTERS) {
+          if (
+            cluster.name.toLowerCase().includes(q) ||
+            cluster.id.toLowerCase().includes(q) ||
+            q.includes(cluster.id.toLowerCase())
+          ) {
+            const dist = Math.sqrt(
+              Math.pow(h.location.latitude - cluster.center[0], 2) +
+              Math.pow(h.location.longitude - cluster.center[1], 2)
+            );
+            if (dist < 0.20) { // ~22 km radius around cluster
+              matchesCluster = true;
+              break;
+            }
+          }
+        }
+
+        if (!matchesId && !matchesArea && !matchesSub && !matchesIndustry && !matchesClass && !matchesCluster) {
           return false;
         }
       }
@@ -331,7 +360,7 @@ export default function App() {
             setFilters={setFilters}
             onResetFilters={handleResetFilters}
             selectedHotspot={selectedHotspot}
-            onSelectHotspot={setSelectedHotspot}
+            onSelectHotspot={handleSelectHotspot}
             investigationIds={investigationIds}
             onToggleInvestigation={handleToggleInvestigation}
             onNavigateTab={setCurrentTab}
@@ -348,7 +377,7 @@ export default function App() {
             setFilters={setFilters}
             onResetFilters={handleResetFilters}
             selectedHotspot={selectedHotspot}
-            onSelectHotspot={setSelectedHotspot}
+            onSelectHotspot={handleSelectHotspot}
             investigationIds={investigationIds}
             onToggleInvestigation={handleToggleInvestigation}
           />
@@ -359,7 +388,7 @@ export default function App() {
           <InvestigationView
             hotspots={allHotspots}
             investigationIds={investigationIds}
-            onSelectHotspot={setSelectedHotspot}
+            onSelectHotspot={handleSelectHotspot}
             onToggleInvestigation={handleToggleInvestigation}
             onClearAllInvestigations={handleClearAllInvestigations}
           />
@@ -369,7 +398,7 @@ export default function App() {
         {currentTab === 'history' && (
           <HistoryView
             hotspots={allHotspots}
-            onSelectHotspot={setSelectedHotspot}
+            onSelectHotspot={handleSelectHotspot}
           />
         )}
 
@@ -379,14 +408,14 @@ export default function App() {
         {/* VIEW 6: FAQ */}
         {currentTab === 'faq' && <FAQ />}
 
-        {/* VIEW 7: SECURITY & PRIVACY */}
-        {currentTab === 'privacy' && <PrivacyView />}
-
-        {/* VIEW 8: DEDICATED HOTSPOT DETAILS PAGE */}
+        {/* VIEW 7: DEDICATED HOTSPOT DETAILS PAGE */}
         {currentTab === 'details' && (
           <HotspotDetailsPage
             hotspot={selectedHotspot}
-            onBack={() => setCurrentTab('dashboard')}
+            onBack={() => {
+              handleCloseHotspot();
+              setCurrentTab('dashboard');
+            }}
             investigationIds={investigationIds}
             onToggleInvestigation={handleToggleInvestigation}
           />
@@ -397,7 +426,7 @@ export default function App() {
       {selectedHotspot && (
         <HotspotDetails
           hotspot={selectedHotspot}
-          onClose={() => setSelectedHotspot(null)}
+          onClose={handleCloseHotspot}
           isInvestigating={investigationIds.includes(selectedHotspot.hotspot_id)}
           onToggleInvestigation={handleToggleInvestigation}
         />
@@ -410,7 +439,7 @@ export default function App() {
           initialHotspotA={selectedHotspot || (allHotspots.length > 0 ? allHotspots[0] : null)}
           initialHotspotB={allHotspots.length > 1 ? (selectedHotspot && selectedHotspot.hotspot_id === allHotspots[0].hotspot_id ? allHotspots[1] : (allHotspots.find(h => h.classification?.label === 'Agricultural Burn') || allHotspots[1])) : null}
           onClose={() => setShowCompareModal(false)}
-          onSelectHotspot={(h) => setSelectedHotspot(h)}
+          onSelectHotspot={(h) => handleSelectHotspot(h)}
           isLoading={dataLoading}
           investigationIds={investigationIds}
           onToggleInvestigation={handleToggleInvestigation}

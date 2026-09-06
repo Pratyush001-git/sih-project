@@ -6,7 +6,6 @@ import {
   History, 
   Info, 
   HelpCircle, 
-  ShieldCheck, 
   Menu, 
   X,
   ArrowRightLeft
@@ -115,16 +114,6 @@ export default function Header({
             </li>
             <li>
               <button 
-                type="button"
-                className={`nav-link ${currentTab === 'privacy' ? 'active' : ''}`}
-                onClick={() => handleNavClick('privacy')}
-              >
-                <ShieldCheck size={16} />
-                <span>Security</span>
-              </button>
-            </li>
-            <li>
-              <button 
                 type="button" 
                 className="btn btn-secondary btn-sm"
                 onClick={onOpenCompare}
@@ -199,14 +188,6 @@ export default function Header({
           >
             <HelpCircle size={18} />
             <span>FAQ (12 Key Answers)</span>
-          </button>
-          <button 
-            type="button"
-            className={`nav-link ${currentTab === 'privacy' ? 'active' : ''}`}
-            onClick={() => handleNavClick('privacy')}
-          >
-            <ShieldCheck size={18} />
-            <span>Security & Privacy</span>
           </button>
           <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
             <button 
